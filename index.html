@@ -118,6 +118,7 @@ $(function(){
 		for ( var i in tdlist ){
 			tdlist[i].val("");
 		};
+		cleaninfo();
 	});
 	function cleaninfo(){
 		for (var i in rowlist){
@@ -127,6 +128,8 @@ $(function(){
 			tdlist[i].attr("style", "border:0px solid;border-color:#FF9224");
 		}
 		$("#t14").html("");
+		for (var pos = 0 ; pos < 8 ; pos++ )
+			$("#row"+pos).attr("style", "border:0px solid;border-color:#FF9224");
 	}
 	$("#expect").click(function(){
 		var avail = [1,2,3,4,5,6,7,8,9];
