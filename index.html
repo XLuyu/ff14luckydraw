@@ -28,10 +28,12 @@
 	}
 </style>
 <script src="https://code.jquery.com/jquery-3.0.0.js"></script>
+<script src="oneslot_table.js"></script>
 <script type="text/javascript">
 $(function(){
 	award = [0,0,0,0,0,0,10000,36,720,360,80,252,108,72,54,180,72,180,119,36,360,1080,144,1800,3600];
 	allmaps = {};
+    // === preprocessing, compute expectation for row case that already has slc[] and possible contain avail[]
 	function row_case_expectation(slc,avail){
 		if (slc.length==3)
 			return award[slc.reduce(function(a, b) { return a + b; }, 0)];
@@ -41,6 +43,7 @@ $(function(){
 			exp += row_case_expectation(slc.concat([avail[i]]),avail.filter(function(x){return x!=avail[i]}));
 		return exp/avail.length;
 	};
+    // === preprocessing, generate all possible row cases
 	function gen_case(depth,slc,avail){
 		if (depth>9){
 			exp = row_case_expectation(slc,avail);
@@ -51,7 +54,10 @@ $(function(){
 			gen_case(depth+1,slc,avail.concat([depth]));
 		}
 	};
-	gen_case(1,[],[]);
+	// === preprocessing, store all cases in allmap{}
+    gen_case(1,[],[]);
+
+    // compute all rows' expectation for current 3X3 map
 	function rows_expectation(mask){
 		var avail = "";
 		var i = 0,j = 0;
@@ -78,7 +84,51 @@ $(function(){
 		}
 		return select;
 	}
-	ms={};
+    // enumerate all unrevealed block possible cases, calculate reward expectation list
+    function possible_reward(slc,avail){
+        if (slc.length==3)
+            return [award[slc.reduce(function(a, b) { return a + b; }, 0)]];
+        var allcase = [];
+        for (var i = 0; i< avail.length ; i++)
+            allcase = allcase.concat(possible_reward(slc.concat([avail[i]]),avail.filter(function(x){return x!=avail[i]})));
+        return allcase;
+    };
+    function reward_list(mapcase,rownum){
+        var r1 = [mapcase[1],mapcase[2],mapcase[3]];
+        var r2 = [mapcase[4],mapcase[5],mapcase[6]];
+        var r3 = [mapcase[7],mapcase[8],mapcase[9]];
+        var c1 = [mapcase[1],mapcase[4],mapcase[7]];
+        var c2 = [mapcase[2],mapcase[5],mapcase[8]];
+        var c3 = [mapcase[3],mapcase[6],mapcase[9]];
+        var d1 = [mapcase[1],mapcase[5],mapcase[9]];
+        var d2 = [mapcase[3],mapcase[5],mapcase[7]];
+        var rows = [r1,r2,r3,c1,c2,c3,d1,d2];
+        var slc = rows[rownum].filter(function(x){return x!=0;});
+        var avail = [1,2,3,4,5,6,7,8,9].filter(function(x){return mapcase.indexOf(x)==-1;});
+        var caselist = possible_reward(slc,avail);
+        var casecnt = {};
+        var slist = [];
+        for (var i in caselist){
+            if (!(caselist[i] in casecnt)) casecnt[caselist[i]] = 0;
+            casecnt[caselist[i]] += 1;
+        }
+        for (var i in casecnt)
+            slist.push(new Array(i,casecnt[i]/caselist.length*100));
+        slist.sort(function(a,b){return b[0]-a[0];});
+        var str = "";
+        for (var i in slist)
+            str += "获得 "+slist[i].join(" 币的概率为: ")+"%<br>";
+        return str;
+    }
+    // for ( var i = 1 ; i <= 9 ; i++ )
+    //     for (var j = 1 ; j <= 9 ; j++ ){
+    //         vs = [0,0,0,0,0,0,0,0,0,0];
+    //         vs[i] = j;
+    //         console.log(i,j,ms[vs]);
+    //     };
+	ms={};// for search Memoization
+    init_table(ms);
+    // to enumerate all cases, generate all next stages by placing a number
 	function next_step(mapcase,first){
 		if (ms[mapcase]!=undefined) return ms[mapcase];
 		if (mapcase.filter(function(x){return x!=0;}).length==4){
@@ -87,8 +137,6 @@ $(function(){
 			for (var i in re)
 				select.push(new Array(i,re[i]));
 			select.sort(function(a,b){return b[1]-a[1];});
-			// for (var i in select)
-			// 	alert(select[i]);
 			return select[0];
 		}
 		var exps = [];
@@ -109,9 +157,8 @@ $(function(){
 		if (first) return exps;
 		return exps[0];
 	}
-	// s = next_step([0,0,1,0,6,0,0,0,0,9],1).join("<br>");
-	// $("body").html(s);
 
+    // UI logic code
 	var tdlist = [$("#t11"),$("#t12"),$("#t13"),$("#t21"),$("#t22"),$("#t23"),$("#t31"),$("#t32"),$("#t33")];
 	var rowlist = [$("#row0"),$("#row1"),$("#row2"),$("#row3"),$("#row4"),$("#row5"),$("#row6"),$("#row7")];
 	$("#clean").click(function(){
@@ -121,6 +168,7 @@ $(function(){
 		cleaninfo();
 	});
 	function cleaninfo(){
+        $("#reward_info").html("");
 		for (var i in rowlist){
 			rowlist[i].text("");
 		};
@@ -169,6 +217,7 @@ $(function(){
 			tdlist[pos-1].attr("style", "border:2px solid;border-color:#FF9224");
 		} else {
 			$("#row"+pos).attr("style", "border:2px solid;border-color:#FF9224");
+            $("#reward_info").html(reward_list(mapcase,pos));
 		}
 		$("#t14").html("期望：<br>"+choice[1].toFixed(0));
 	});
@@ -240,6 +289,9 @@ $(function(){
 			<td colspan=2 id=next_step><button>下一步怎么选？</button></td>
 		</tr>
 	</table>
+    <br>
+    <div id=reward_info>
+    </div>
 	<script type="text/javascript">
 		$(function(){
 		});
